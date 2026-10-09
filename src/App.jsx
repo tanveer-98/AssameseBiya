@@ -3,44 +3,36 @@ import {
   ArrowDown, ArrowRight, Check, ChevronDown, Heart, MapPin, Menu, Search,
   ShieldCheck, SlidersHorizontal, Sparkles, Users, X,
 } from 'lucide-react';
-
+import {
+  clearGuestSaved, clearSession, createPasswordCredentials, loadUserData,
+  persistGuestSaved, persistSession, persistUsers, verifyPassword,
+} from './userStore.js';
+import landingImage from './landingpage.png'
 const profiles = [
   {
-    id: 1, name: 'Priyanka', age: 27, city: 'Guwahati', occupation: 'Architect',
+    id: 1, name: 'Rabina', age: 27, city: 'Nalbari', occupation: 'Teacher',
     education: 'M.Arch, CEPT University', height: "5'4\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=85',
+    image: 'rabina.png',
     about: 'A curious soul who finds joy in old songs, new cities, and long Sunday breakfasts. Hoping to meet someone kind, grounded, and ready to build a life together.',
   },
   {
-    id: 2, name: 'Arjun', age: 29, city: 'Jorhat', occupation: 'Software Engineer',
-    education: 'B.Tech, IIT Guwahati', height: "5'10\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85',
-    about: 'Software engineer by day, amateur guitarist by night. I love exploring Assam, making a great cup of coffee, and spending time with family.',
+    id: 2, name: 'Rimpi', age: 28, city: 'Nalbari', occupation: 'Teacher',
+    education: 'Modern English school', height: "5'10\"", faith: 'Hindu',
+    image: 'rimpi.png',
+    about: 'Teacher by day, amateur guitarist by night. I love exploring Assam, making a great cup of coffee, and spending time with family.',
   },
   {
-    id: 3, name: 'Nandita', age: 26, city: 'Dibrugarh', occupation: 'Doctor',
-    education: 'MBBS, Assam Medical College', height: "5'3\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85',
-    about: 'A doctor with a soft spot for poetry, rainy afternoons, and the smell of tea gardens. Looking for a thoughtful partner and a best friend.',
+    id: 3, name: 'Somashree', age: 26, city: 'Bengaluru', occupation: 'MBA Graduate',
+    education: 'Institute of public Enterprise', height: "5'3\"", faith: 'Hindu',
+    image: 'somashree.png',
+    about: 'A MBA Student with a soft spot for poetry, rainy afternoons, and the smell of tea gardens. Looking for a thoughtful partner and a best friend.',
   },
   {
-    id: 4, name: 'Rishav', age: 30, city: 'Bengaluru', occupation: 'Product Designer',
-    education: 'M.Des, NID Ahmedabad', height: "5'11\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=85',
-    about: 'An Assamese at heart, currently building products in Bengaluru. Usually sketching, hiking, or planning my next trip back home.',
-  },
-  {
-    id: 5, name: 'Ananya', age: 28, city: 'Guwahati', occupation: 'Chartered Accountant',
-    education: 'CA, ICAI', height: "5'5\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=85',
-    about: 'Numbers at work, stories after hours. I enjoy discovering little cafés, spending time with my close-knit family, and taking spontaneous road trips.',
-  },
-  {
-    id: 6, name: 'Debojit', age: 31, city: 'Tezpur', occupation: 'Civil Engineer',
-    education: 'B.E., Jorhat Engineering College', height: "5'9\"", faith: 'Hindu',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=85',
-    about: 'Home is wherever there is good company and a plate of pitha. I value honesty, laughter, and making the most of ordinary days.',
-  },
+    id: 4, name: 'Abhinav', age: 28, city: 'Bengaluru', occupation: 'Senior software Developer',
+    education: 'B.Tech NIT Silchar', height: "5'11\"", faith: 'Hindu',
+    image: 'abhinav.png',
+    about: 'An Assamese at heart, currently building products in Bengaluru. Usually Building software , hiking, or planning my next trip back home.',
+  }
 ];
 
 function Brand() {
@@ -103,22 +95,33 @@ function Modal({ children, onClose, label }) {
 }
 
 function App() {
-  const [gender, setGender] = useState('Bride');
+  const [initialUserData] = useState(() => {
+    try {
+      return { ...loadUserData(), error: '' };
+    } catch (error) {
+      return { users: [], user: null, saved: [], error: error.message };
+    }
+  });
+  const [users, setUsers] = useState(initialUserData.users);
+  const [currentUser, setCurrentUser] = useState(initialUserData.user);
+  const [gender, setGender] = useState(initialUserData.user?.lookingFor === 'A groom' ? 'Groom' : 'Bride');
   const [ageRange, setAgeRange] = useState('22 – 30 years');
   const [location, setLocation] = useState('Any location');
-  const [saved, setSaved] = useState([]);
+  const [saved, setSaved] = useState(initialUserData.saved);
   const [modal, setModal] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchApplied, setSearchApplied] = useState(false);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [notice, setNotice] = useState('');
+  const [storageError, setStorageError] = useState(initialUserData.error);
+  const [submitting, setSubmitting] = useState(false);
 
   const results = useMemo(() => {
     const [minAge, maxAge] = ageRange.match(/\d+/g).map(Number);
     const matchesGender = (profile) => gender === 'Bride'
-      ? ['Priyanka', 'Nandita', 'Ananya'].includes(profile.name)
-      : ['Arjun', 'Rishav', 'Debojit'].includes(profile.name);
+      ? ['Rimpi', 'Somashree','Rabina'].includes(profile.name)
+      : ['Abhinav'].includes(profile.name);
     return profiles.filter((profile) => matchesGender(profile)
       && profile.age >= minAge && profile.age <= maxAge
       && (location === 'Any location' || profile.city === location)
@@ -126,7 +129,22 @@ function App() {
   }, [ageRange, gender, location, saved, showSavedOnly]);
 
   function toggleSaved(id) {
-    setSaved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    const nextSaved = saved.includes(id) ? saved.filter((item) => item !== id) : [...saved, id];
+    try {
+      if (currentUser) {
+        const updatedUser = { ...currentUser, savedProfileIds: nextSaved };
+        const nextUsers = users.map((user) => user.email === currentUser.email ? updatedUser : user);
+        persistUsers(nextUsers);
+        setUsers(nextUsers);
+        setCurrentUser(updatedUser);
+      } else {
+        persistGuestSaved(nextSaved);
+      }
+      setSaved(nextSaved);
+      setStorageError('');
+    } catch (error) {
+      setStorageError(error.message);
+    }
   }
 
   function showProfile(profile) {
@@ -137,12 +155,144 @@ function App() {
 
   function showSignup() {
     setNotice('');
+    setStorageError('');
     setModal('signup');
   }
 
-  function handleSignup(event) {
+  function showLogin() {
+    setNotice('');
+    setStorageError('');
+    setModal('login');
+  }
+
+  function openAccount() {
+    setNotice('');
+    setStorageError('');
+    setModal('account');
+  }
+
+  function completeLogin(user) {
+    persistSession(user.email);
+    setCurrentUser(user);
+    setSaved(user.savedProfileIds);
+    setShowSavedOnly(false);
+    setStorageError('');
+    setNotice('');
+    setModal(null);
+  }
+
+  async function handleSignup(event) {
     event.preventDefault();
-    setNotice('You’re on the list! We’ll be in touch soon.');
+    if (submitting) return;
+    if (initialUserData.error) {
+      setStorageError(initialUserData.error);
+      return;
+    }
+    setSubmitting(true);
+    setNotice('');
+    setStorageError('');
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get('name')).trim();
+    const email = String(form.get('email')).trim().toLowerCase();
+    const lookingFor = String(form.get('lookingFor'));
+    const password = String(form.get('password'));
+
+    try {
+      if (users.some((user) => user.email === email)) {
+        setStorageError('An account with this email already exists. Log in instead.');
+        return;
+      }
+      const credentials = await createPasswordCredentials(password);
+      const newUser = {
+        id: crypto.randomUUID(),
+        name,
+        email,
+        lookingFor,
+        savedProfileIds: [...new Set(saved)],
+        createdAt: new Date().toISOString(),
+        ...credentials,
+      };
+      const nextUsers = [...users, newUser];
+      persistUsers(nextUsers);
+      persistSession(email);
+      clearGuestSaved();
+      setUsers(nextUsers);
+      setCurrentUser(newUser);
+      setSaved(newUser.savedProfileIds);
+      setGender(lookingFor === 'A bride' ? 'Bride' : 'Groom');
+      setShowSavedOnly(false);
+      setModal(null);
+    } catch (error) {
+      setStorageError(error.message || 'We couldn’t create your account. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    if (submitting) return;
+    if (initialUserData.error) {
+      setStorageError(initialUserData.error);
+      return;
+    }
+    setSubmitting(true);
+    setNotice('');
+    setStorageError('');
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get('email')).trim().toLowerCase();
+    const password = String(form.get('password'));
+
+    try {
+      const user = users.find((entry) => entry.email === email);
+      if (!user || !(await verifyPassword(password, user))) {
+        setStorageError('Email or password is incorrect.');
+        return;
+      }
+      completeLogin(user);
+      setGender(user.lookingFor === 'A bride' ? 'Bride' : 'Groom');
+    } catch (error) {
+      setStorageError(error.message || 'We couldn’t log you in. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleAccountUpdate(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const updatedUser = {
+      ...currentUser,
+      name: String(form.get('name')).trim(),
+      lookingFor: String(form.get('lookingFor')),
+    };
+    const nextUsers = users.map((user) => user.email === currentUser.email ? updatedUser : user);
+    try {
+      persistUsers(nextUsers);
+      setUsers(nextUsers);
+      setCurrentUser(updatedUser);
+      setGender(updatedUser.lookingFor === 'A bride' ? 'Bride' : 'Groom');
+      setNotice('Your profile details have been updated.');
+      setStorageError('');
+    } catch (error) {
+      setStorageError(error.message);
+    }
+  }
+
+  function handleLogout() {
+    try {
+      clearSession();
+      const guestSaved = [];
+      persistGuestSaved(guestSaved);
+      setCurrentUser(null);
+      setSaved(guestSaved);
+      setShowSavedOnly(false);
+      setModal(null);
+      setNotice('');
+      setStorageError('');
+    } catch (error) {
+      setStorageError(error.message);
+    }
   }
 
   function scrollToProfiles() {
@@ -165,8 +315,17 @@ function App() {
               <Heart size={16} /> Saved {saved.length > 0 && <span className="saved-count">{saved.length}</span>}
             </button>
             <span className="nav-divider" />
-            <button className="login-link" onClick={() => setModal('login')}>Log in</button>
-            <button className="button button-small" onClick={showSignup}>Join free <ArrowRight size={15} /></button>
+            {currentUser ? (
+              <>
+                <button className="login-link account-link" onClick={openAccount}>{currentUser.name}</button>
+                <button className="button button-small" onClick={handleLogout}>Log out</button>
+              </>
+            ) : (
+              <>
+                <button className="login-link" onClick={showLogin}>Log in</button>
+                <button className="button button-small" onClick={showSignup}>Join free <ArrowRight size={15} /></button>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -190,7 +349,7 @@ function App() {
           </div>
           <div className="hero-visual">
             <div className="hero-photo">
-              <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1300&q=90" alt="A couple celebrating their wedding day" />
+              <img src={landingImage} alt="A couple celebrating their wedding day" />
             </div>
             <div className="floating-note"><span className="note-icon"><Heart size={17} fill="currentColor" /></span><span><strong>Made for meaningful</strong><br />connections</span></div>
             <div className="photo-caption"><span className="caption-dot" /> YOUR STORY STARTS HERE</div>
@@ -213,7 +372,7 @@ function App() {
               <Search size={17} /> Find my matches
             </button>
           </div>
-          <div className="search-foot"><span><ShieldCheck size={15} /> Your details stay private, always.</span><button onClick={() => { setGender('Bride'); setAgeRange('22 – 30 years'); setLocation('Any location'); }}>Clear filters</button></div>
+          <div className="search-foot"><span><ShieldCheck size={15} /> Saved in this browser, not sent to a server.</span><button onClick={() => { setGender('Bride'); setAgeRange('22 – 30 years'); setLocation('Any location'); }}>Clear filters</button></div>
         </section>
 
         <section className="profiles-section" id="profiles">
@@ -274,8 +433,10 @@ function App() {
       {modal === 'signup' && (
         <Modal onClose={() => setModal(null)} label="Create your profile">
           <div className="form-modal"><span className="eyebrow">YOUR STORY STARTS HERE</span><h2>Let’s find your person.</h2><p>Join our community — it’s free to get started.</p>
-            <form onSubmit={handleSignup}><label>Your name<input required placeholder="What should we call you?" /></label><label>Email address<input required type="email" placeholder="you@example.com" /></label><label>I’m here to find<select defaultValue=""><option value="" disabled>Select one</option><option>A bride</option><option>A groom</option></select></label><button className="button modal-action" type="submit">Create my free profile <ArrowRight size={16} /></button></form>
-            {notice && <span className="form-success"><Check size={16} />{notice}</span>}<span className="form-privacy"><ShieldCheck size={14} /> Your information stays private.</span>
+            <form onSubmit={handleSignup}><label>Your name<input name="name" required maxLength={80} autoComplete="name" placeholder="What should we call you?" /></label><label>Email address<input name="email" required type="email" autoComplete="email" placeholder="you@example.com" /></label><label>I’m here to find<select name="lookingFor" defaultValue={gender === 'Bride' ? 'A bride' : 'A groom'}><option>A bride</option><option>A groom</option></select></label><label>Password<input name="password" required type="password" minLength={8} autoComplete="new-password" placeholder="At least 8 characters" /></label><button className="button modal-action" type="submit" disabled={submitting}>{submitting ? 'Creating account…' : 'Create my free profile'} {!submitting && <ArrowRight size={16} />}</button></form>
+            {storageError && <span className="form-error" role="alert">{storageError}</span>}
+            <span className="form-privacy"><ShieldCheck size={14} /> Your profile and saved matches stay in this browser.</span>
+            <p className="auth-switch">Already a member? <button onClick={showLogin}>Log in</button></p>
           </div>
         </Modal>
       )}
@@ -283,8 +444,29 @@ function App() {
       {modal === 'login' && (
         <Modal onClose={() => setModal(null)} label="Log in">
           <div className="form-modal"><span className="eyebrow">WELCOME BACK</span><h2>Good to see you.</h2><p>Log in to pick up where your story left off.</p>
-            <form onSubmit={(event) => { event.preventDefault(); setNotice('Login is coming soon — thanks for your patience!'); }}><label>Email address<input required type="email" placeholder="you@example.com" /></label><label>Password<input required type="password" placeholder="Your password" /></label><button className="button modal-action" type="submit">Log in <ArrowRight size={16} /></button></form>
-            {notice && <span className="form-success"><Check size={16} />{notice}</span>}<span className="form-privacy"><ShieldCheck size={14} /> Your information stays private.</span>
+            <form onSubmit={handleLogin}><label>Email address<input name="email" required type="email" autoComplete="email" placeholder="you@example.com" /></label><label>Password<input name="password" required type="password" autoComplete="current-password" placeholder="Your password" /></label><button className="button modal-action" type="submit" disabled={submitting}>{submitting ? 'Logging in…' : 'Log in'} {!submitting && <ArrowRight size={16} />}</button></form>
+            {storageError && <span className="form-error" role="alert">{storageError}</span>}
+            <span className="form-privacy"><ShieldCheck size={14} /> Your account and saved matches stay in this browser.</span>
+            <p className="auth-switch">New to Axaam Jibon? <button onClick={showSignup}>Join free</button></p>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'account' && currentUser && (
+        <Modal onClose={() => setModal(null)} label="Your account">
+          <div className="form-modal">
+            <span className="eyebrow">YOUR AXAAM JIBON ACCOUNT</span><h2>Your profile.</h2>
+            <p>Update your details and keep track of the profiles you’ve saved.</p>
+            <div className="account-stats"><span><strong>{saved.length}</strong> saved profiles</span><span><strong>{new Date(currentUser.createdAt).toLocaleDateString()}</strong> joined</span></div>
+            <form onSubmit={handleAccountUpdate}>
+              <label>Your name<input name="name" required maxLength={80} defaultValue={currentUser.name} /></label>
+              <label>Email address<input value={currentUser.email} readOnly /></label>
+              <label>I’m here to find<select name="lookingFor" defaultValue={currentUser.lookingFor}><option>A bride</option><option>A groom</option></select></label>
+              <button className="button modal-action" type="submit">Save profile details <Check size={16} /></button>
+            </form>
+            {notice && <span className="form-success"><Check size={16} />{notice}</span>}
+            {storageError && <span className="form-error" role="alert">{storageError}</span>}
+            <button className="logout-button" onClick={handleLogout}>Log out of this browser</button>
           </div>
         </Modal>
       )}
